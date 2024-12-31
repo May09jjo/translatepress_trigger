@@ -1,33 +1,35 @@
 import requests
+import re
 from bs4 import BeautifulSoup
 from time import sleep
 
 def fetch_sitemap_urls(sitemap_url):
     """Fetch URLs from the sitemap."""
     try:
-        # Fetch the HTML content of the sitemap
-        response = requests.get(sitemap_url)
-        response.raise_for_status()  # Raise HTTPError for bad responses
+        response = requests.get(sitemap_url, headers={ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' })
+        response.raise_for_status()  # Check for HTTP request errors
+        # soup = BeautifulSoup(response.content, 'xml')
+        
+        # Regular expression to capture the `href` attribute inside the <xhtml:link> tag
+        pattern = r'<xhtml:link.*?rel="alternate".*?href="(.*?)".*?>'
 
-        # Parse the HTML content with BeautifulSoup
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # Extract all matches
+        urls_temp = re.findall(pattern, response.content.decode("utf-8"))
 
-        # Locate the table with URLs
-        table = soup.find('table', {'id': 'sitemap'})
-        if not table:
-            raise ValueError("No table with id 'sitemap' found in the HTML.")
+        unique_urls = []
+        for url in urls_temp:
+            if '/en/' not in url and url not in unique_urls:
+                unique_urls.append(url)
 
-        # Extract all URLs from <a> tags within the table
-        urls = []
-        for a_tag in table.find_all('a', href=True):
-            urls.append(a_tag['href'])
+        # Remove duplicates by converting the list to a set, then back to a list (if order matters, use sorted)
+        urls = list(set(unique_urls))
+
+        for url in urls:
+            print(url)
 
         return urls
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching sitemap: {e}")
-        return []
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Error fetching sitemap: {e}")
         return []
 
 def visit_urls(urls):
@@ -44,7 +46,7 @@ def visit_urls(urls):
                 print(f"⚠️ Failed to visit {url} (Status Code: {response.status_code})")
             
             # Sleep to avoid overloading the server
-            sleep(10)  # Adjust delay as needed
+            sleep(15)  # Adjust delay as needed
         except Exception as e:
             print(f"Error visiting {url}: {e}")
 
